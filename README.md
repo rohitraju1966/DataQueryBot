@@ -143,16 +143,27 @@ streamlit run app.py
 ## Examples
 
 ### Internal User
-**Q:** How much revenue in March 2025?  
-**A:** $2,820,646.27
+You: Total revenue in march 2025?
 
-### Merchant (Coffee Dose)
-**Q:** How did revenue change?  
-```
-2025-03: $148,582.58  
-2025-04: $158,123.60  
-```
+Assistant:
 
+Here is the answer:
+
+The total revenue in March 2025 is $1,326,770.09.
+
+
+### Merchant (Tikka Shack)
+You: total revenue in march 2025?
+
+Assistant:
+
+Here is the result:
+
+total_revenue_in_dollars
+78020.08
+Insights: The total revenue in March 2025 for Tikka Shack is $78,020.08.
+
+Since this is a significant revenue, a potential opportunity is to increase sales further. A marketing promotion could be: "Offer a 10% discount on all orders above $100 in April 2025 to maintain the sales momentum."
 ---
 
 
