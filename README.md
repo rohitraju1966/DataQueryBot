@@ -164,6 +164,7 @@ total_revenue_in_dollars
 Insights: The total revenue in March 2025 for Tikka Shack is $78,020.08.
 
 Since this is a significant revenue, a potential opportunity is to increase sales further. A marketing promotion could be: "Offer a 10% discount on all orders above $100 in April 2025 to maintain the sales momentum."
+
 ---
 
 
