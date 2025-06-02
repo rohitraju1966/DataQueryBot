@@ -175,6 +175,8 @@ Since this is a significant revenue, a potential opportunity is to increase sale
 
 ### main.py Architecture
 
+![Architecture diagram](architecture_dataquerybot.png)
+
 The `main.py` file handles the backend logic of the chatbot and follows this flow:
 
 1. **Environment Setup**: Loads environment variables to determine user mode (Per Diem internal user vs. merchant). Depending on the mode, it connects to either the full or a filtered SQLite database.
