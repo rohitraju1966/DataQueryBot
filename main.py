@@ -135,7 +135,6 @@ def nl_to_sql(query: str, context_str: str) -> str:
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        # Return a recognizable error string instead of throwing
         return f"--ERROR IN nl_to_sql: {str(e)}"
 
 # If the initial SQL fails on SQLite, this function builds a prompt containing the user’s question
@@ -222,7 +221,6 @@ memory = ConversationBufferMemory(return_messages=True)
 # We prepend the same context line here as well.
 # ----------------------------------------------------------------------
 def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, error_msg: str = None, context_str: str = "") -> str:
-    # Build result_content from DataFrame or error
     if error_msg:
         result_content = f"Error executing SQL: {error_msg}"
     elif df is None or df.empty:
@@ -234,10 +232,10 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
         else:
             result_content = f"Result Table:\n{table_text}"
 
-    # Load past conversation history from memory
+
     history_str = memory.load_memory_variables({})["history"]
 
-    # Build messages for summarization prompt
+
     messages = FEW_SHOT_SUMMARY_PROMPT + [
         {"role": "user", "content": f"Context: {context_str}"},
         {
@@ -251,7 +249,6 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
         }
     ]
 
-    # Call LLM for summary/insight/marketing suggestion
     try:
         response = client.chat.completions.create(
             model="llama3-70b-8192",
@@ -263,7 +260,6 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
     except Exception as e:
         summary = f"--ERROR IN summarize_result: {str(e)}"
 
-    # Save this question/summary pair into memory for future turns
     memory.save_context({"user": question}, {"assistant": summary})
     return summary
 
@@ -278,7 +274,6 @@ def main(merchant_name: str, is_per_diem: bool):
     # If merchant_name is provided, build a filtered database containing only that store's data
     original_db_path = "Processed/dashboard_chatbot.db"
     if merchant_name:
-        # Load the original database into pandas DataFrames
         original_engine = create_engine(f"sqlite:///{original_db_path}")
         stores_df = pd.read_sql_query("SELECT * FROM stores WHERE name = ?", original_engine, params=(merchant_name,))
         if stores_df.empty:
@@ -301,7 +296,6 @@ def main(merchant_name: str, is_per_diem: bool):
         engine = create_engine(f"sqlite:///{filtered_db_path}")
         context_str = f"Serving for merchant: {merchant_name}"
     else:
-        # Per Diem user: use the full original database
         engine = create_engine(f"sqlite:///{original_db_path}")
         context_str = "Serving for PerDiem internal user"
 
@@ -315,7 +309,6 @@ def main(merchant_name: str, is_per_diem: bool):
         # Generate raw SQL from user question, including context
         generated_sql = nl_to_sql(user_question, context_str)
         if generated_sql.startswith("--ERROR"):
-            # If nl_to_sql failed, report and skip execution
             print(f"\nAssistant: {generated_sql}")
             continue
 
