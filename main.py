@@ -1,10 +1,9 @@
-#Required libraries
+# Required libraries
 import os
 from sqlalchemy import create_engine
 import pandas as pd
 from groq import Groq
 from langchain.memory import ConversationBufferMemory
-
 
 # Schema description for SQLite. Used by the SQL‐generation LLM prompt.
 SCHEMA_DESCRIPTION = """
@@ -55,7 +54,6 @@ stores(
     pre_sale (JSON, whether scheduled orders are allowed)
 )
 """
-
 
 # Few‐shot prompt examples for converting natural‐language to SQL.
 FEW_SHOT_SQL_PROMPT = [
@@ -122,82 +120,83 @@ FEW_SHOT_SQL_PROMPT = [
 api_key = os.getenv("GROQ_KEY")
 client = Groq(api_key=api_key)
 
-
 # Sends a natural‐language query to the LLM with few‐shot context and returns the generated SQLite query.
-# We now prepend a context line ("Context: merchant_name or PerDiem internal user") to every prompt.
 def nl_to_sql(query: str, context_str: str) -> str:
-    messages = FEW_SHOT_SQL_PROMPT + [
-        {"role": "user", "content": f"Context: {context_str}"},
-        {"role": "user", "content": query}
-    ]
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=messages,
-        temperature=0.0,
-        max_tokens=256
-    )
-    return response.choices[0].message.content.strip()
+    try:
+        messages = FEW_SHOT_SQL_PROMPT + [
+            {"role": "user", "content": f"Context: {context_str}"},
+            {"role": "user", "content": query}
+        ]
+        response = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=messages,
+            temperature=0.0,
+            max_tokens=256
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        # Return a recognizable error string instead of throwing
+        return f"--ERROR IN nl_to_sql: {str(e)}"
 
-
-# If the initial SQL fails on SQLite, this function builds a prompt containing the user’s question,
-# the bad SQL, the error message, and the same context line so the LLM can generate a corrected SQL.
+# If the initial SQL fails on SQLite, this function builds a prompt containing the user’s question
 def fix_sql_with_error(question: str, bad_sql: str, error_msg: str, context_str: str) -> str:
-    fix_prompt = [
-        {
-            "role": "system",
-            "content": (
-                f"{SCHEMA_DESCRIPTION}\n"
-                "One of your previously generated SQL statements failed on SQLite with an error. "
-                "Below is the user’s original question, the SQL you provided, the SQLite error message, "
-                "and the context (merchant or PerDiem internal user). "
-                "Please correct the SQL to be valid SQLite syntax and satisfy the original request. "
-                "Return only the corrected SQL statement (no commentary)."
-            )
-        },
-        {"role": "user", "content": f"Context: {context_str}"},
-        {
-            "role": "user",
-            "content": (
-                f"User question: {question}\n"
-                f"Bad SQL: {bad_sql}\n"
-                f"SQLite error: {error_msg}"
-            )
-        }
-    ]
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=fix_prompt,
-        temperature=0.0,
-        max_tokens=256
-    )
-    return response.choices[0].message.content.strip()
-
+    try:
+        fix_prompt = [
+            {
+                "role": "system",
+                "content": (
+                    f"{SCHEMA_DESCRIPTION}\n"
+                    "One of your previously generated SQL statements failed on SQLite with an error. "
+                    "Below is the user’s original question, the SQL you provided, the SQLite error message, "
+                    "and the context (merchant or PerDiem internal user). "
+                    "Please correct the SQL to be valid SQLite syntax and satisfy the original request. "
+                    "Return only the corrected SQL statement (no commentary)."
+                )
+            },
+            {"role": "user", "content": f"Context: {context_str}"},
+            {
+                "role": "user",
+                "content": (
+                    f"User question: {question}\n"
+                    f"Bad SQL: {bad_sql}\n"
+                    f"SQLite error: {error_msg}"
+                )
+            }
+        ]
+        response = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=fix_prompt,
+            temperature=0.0,
+            max_tokens=256
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"--ERROR IN fix_sql_with_error: {str(e)}"
 
 # Few‐shot prompt examples for summarizing the SQL result.
 FEW_SHOT_SUMMARY_PROMPT = [
     {
-    "role": "system",
-    "content": (
-        "You are given:\n"
-        "• The user’s original question\n"
-        "• The final SQL query that was executed\n"
-        "• The resulting table (or an error message)\n"
-        "• The conversation memory so far\n\n"
-        "Instructions:\n"
-        "1. Use both the SQL‐extracted table and conversation history to draw your insights and answer the question.\n"
-        "2. If relevant, incorporate any context from the conversation memory to clarify or enrich your analysis, but do not let memory override the concrete numbers in the table.\n"
-        "3. If the result has multiple rows, include a small markdown‐style table showing those rows.\n"
-        "4. Immediately below that table, draw one or two brief insights with precise numbers (in dollars, not cents).\n"
-        "5. If those insights suggest an opportunity (e.g., a drop in pickup orders, or one store vastly outperforming others), then propose a specific marketing promotion. DO NOT SUGGEST A MARKETING STRATEGY UNLESS IT FOLLOWS DIRECTLY FROM THE INSIGHTS.\n"
-        "6. Otherwise, skip any marketing suggestion.\n"
-        "7. Always use only the rows shown—do not add, infer, or omit values.\n"
-        "8. If there is an error or no rows, first consult the conversation memory to try to answer the question. If you still cannot provide an answer, reply exactly:\n"
-        "   “I’m sorry, I couldn’t retrieve an answer—please rephrase or check the data.”\n"
-        "9. If the single row is 0, reply exactly:\n"
-        "   “It seems there are zero matching records—please verify your question.”\n"
-        "10. Otherwise, for a single non‐zero row, answer in one sentence (no table needed) and only add a marketing idea if it follows logically from the insight."
-         "**Any column or anwer representing money (e.g., fields labeled “march_sales”/“total_revenue”) is in cents—always divide those values by 100.0 to convert to dollars before displaying and refer to amounts in dollars.**\n"
-    )
+        "role": "system",
+        "content": (
+            "You are given:\n"
+            "• The user’s original question\n"
+            "• The final SQL query that was executed\n"
+            "• The resulting table (or an error message)\n"
+            "• The conversation memory so far\n\n"
+            "Instructions:\n"
+            "1. Use both the SQL‐extracted table and conversation history to draw your insights and answer the question.\n"
+            "2. If relevant, incorporate any context from the conversation memory to clarify or enrich your analysis, but do not let memory override the concrete numbers in the table.\n"
+            "3. If the result has multiple rows, include a small markdown‐style table showing those rows.\n"
+            "4. Immediately below that table, draw one or two brief insights with precise numbers (in dollars, not cents).\n"
+            "5. If those insights suggest an opportunity (e.g., a drop in pickup orders, or one store vastly outperforming others), then propose a specific marketing promotion. DO NOT SUGGEST A MARKETING STRATEGY UNLESS IT FOLLOWS DIRECTLY FROM THE INSIGHTS.\n"
+            "6. Otherwise, skip any marketing suggestion (Do not mention 'No marketing suggestion is needed in this case.', just don't mention anything)\n"
+            "7. Always use only the rows shown—do not add, infer, or omit values.\n"
+            "8. If there is an error or no rows, first consult the conversation memory to try to answer the question. If you still cannot provide an answer, reply exactly:\n"
+            "   “I’m sorry, I couldn’t retrieve an answer—please rephrase or check the data.”\n"
+            "9. If the single row is 0, reply exactly:\n"
+            "   “It seems there are zero matching records—please verify your question.”\n"
+            "10. Otherwise, for a single non‐zero row, answer in one sentence (no table needed) and only add a marketing idea if it follows logically from the insight.\n"
+        )
     },
     {
         "role": "user",
@@ -211,8 +210,6 @@ FEW_SHOT_SUMMARY_PROMPT = [
 
 # Instantiate memory once per chatbot session.
 memory = ConversationBufferMemory(return_messages=True)
-
-
 
 # ----------------------------------------------------------------------
 # Function: summarize_result
@@ -240,7 +237,7 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
     # Load past conversation history from memory
     history_str = memory.load_memory_variables({})["history"]
 
-    # Combine few‐shot prompt, memory, context, and current inputs
+    # Build messages for summarization prompt
     messages = FEW_SHOT_SUMMARY_PROMPT + [
         {"role": "user", "content": f"Context: {context_str}"},
         {
@@ -255,13 +252,16 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
     ]
 
     # Call LLM for summary/insight/marketing suggestion
-    response = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=messages,
-        temperature=0.0,
-        max_tokens=256
-    )
-    summary = response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=messages,
+            temperature=0.0,
+            max_tokens=256
+        )
+        summary = response.choices[0].message.content.strip()
+    except Exception as e:
+        summary = f"--ERROR IN summarize_result: {str(e)}"
 
     # Save this question/summary pair into memory for future turns
     memory.save_context({"user": question}, {"assistant": summary})
@@ -314,6 +314,10 @@ def main(merchant_name: str, is_per_diem: bool):
 
         # Generate raw SQL from user question, including context
         generated_sql = nl_to_sql(user_question, context_str)
+        if generated_sql.startswith("--ERROR"):
+            # If nl_to_sql failed, report and skip execution
+            print(f"\nAssistant: {generated_sql}")
+            continue
 
         try:
             # Try executing the SQL directly against the chosen engine
@@ -323,6 +327,11 @@ def main(merchant_name: str, is_per_diem: bool):
             # If it fails, ask LLM to fix the SQL
             error_msg = str(e)
             corrected_sql = fix_sql_with_error(user_question, generated_sql, error_msg, context_str)
+            if corrected_sql.startswith("--ERROR"):
+                # If fix_sql_with_error failed, report and skip summarization
+                print(f"\nAssistant: {corrected_sql}")
+                continue
+
             try:
                 df_result = pd.read_sql_query(corrected_sql, engine)
                 error_msg = None
@@ -334,6 +343,7 @@ def main(merchant_name: str, is_per_diem: bool):
         # Summarize results (or error), passing context
         summary = summarize_result(user_question, generated_sql, df_result, error_msg, context_str)
         print(f"\nAssistant: {summary}")
+
 
 if __name__ == "__main__":
     # Pass merchant_name AND set is_per_diem=False for a merchant
