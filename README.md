@@ -17,7 +17,8 @@ A Python-based chatbot allowing both Per Diem internal users and merchant users 
 8. [Running the Streamlit App](#running-the-streamlit-app)  
 9. [Environment Variables](#environment-variables)  
 10. [Examples](#examples)  
-11. [Architecture](#architecture)  
+11. [Architecture](#architecture)
+12. [DockerFile Run](#docker)
 
 ---
 
@@ -196,4 +197,22 @@ The `main.py` file handles the backend logic of the chatbot and follows this flo
    - Displays insights.
 
 This separation of concerns ensures the model can flexibly support follow-up questions while maintaining safe access to merchant-specific data only.
+
+
+---
+
+## Running with Docker
+
+1. **Build the Docker image** (from project root, where `Dockerfile` lives):  
+   ```bash
+   docker build -t dataquerybot:latest .
+   ```
+2. Run container locally, forwarding port 8501 and loading environment vars:
+   ```bash
+   docker run -d \
+  -p 8501:8501 \
+  --env-file .env \
+  --name dataquerybot \
+  dataquerybot:latest```
+3. Verify and visit http://localhost:8501 in your browser.
 
