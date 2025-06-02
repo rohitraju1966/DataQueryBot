@@ -173,9 +173,11 @@ Since this is a significant revenue, a potential opportunity is to increase sale
 
 ## Architecture
 
-### main.py Architecture
+## Flowchart
 
 ![Architecture diagram](Architecture_DataQueryBot.png)
+
+### main.py Architecture
 
 The `main.py` file handles the backend logic of the chatbot and follows this flow:
 
