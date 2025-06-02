@@ -1,5 +1,4 @@
 # app.py
-
 import os
 import re
 import streamlit as st
@@ -28,7 +27,6 @@ merchant_names = load_merchant_names()
 
 # Initialize session state variables
 if "current_mode" not in st.session_state:
-    # Will hold either "internal" or "merchant:<store_name>"
     st.session_state.current_mode = None
 
 if "engine" not in st.session_state:
@@ -41,10 +39,8 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 if "memories" not in st.session_state:
-    # A dict of mode → ConversationBufferMemory
     st.session_state.memories = {}
 
-# Sidebar: select user type and, if merchant, choose merchant name
 st.sidebar.title("User Selection")
 user_type = st.sidebar.radio("I am a:", ["PerDiem Internal User", "Merchant"])
 
@@ -143,10 +139,10 @@ def process_query():
     # Append user message
     st.session_state.chat_history.append({"role": "user", "content": question})
 
-    # Step 1: NL → SQL (with context)
+    # NL → SQL (with context)
     generated_sql = nl_to_sql(question, st.session_state.context_str)
 
-    # Step 2: Execute or fix SQL
+    # Execute or fix SQL
     try:
         df_result = pd.read_sql_query(generated_sql, st.session_state.engine)
         error_msg = None
@@ -169,7 +165,7 @@ def process_query():
     # Ensure backend uses the correct memory
     main.memory = get_current_memory()
 
-    # Step 3: Summarize results via LLM
+    # Summarize results via LLM
     response = summarize_result(
         question,
         generated_sql,
@@ -178,13 +174,13 @@ def process_query():
         st.session_state.context_str
     )
 
-    # 1) Insert a space after a period if followed by uppercase
+    # Insert a space after a period if followed by uppercase
     response = re.sub(r"\.([A-Z])", r". \1", response)
 
-    # 2) Insert a space between a lowercase letter and an uppercase letter
+    # Insert a space between a lowercase letter and an uppercase letter
     response = re.sub(r"([a-z])([A-Z])", r"\1 \2", response)
 
-    # 3) (Optional) Insert a space between a letter and a digit
+    # Insert a space between a letter and a digit
     response = re.sub(r"([A-Za-z])(\d)", r"\1 \2", response)
 
     # Append assistant response
