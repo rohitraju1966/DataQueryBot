@@ -201,7 +201,7 @@ This separation of concerns ensures the model can flexibly support follow-up que
 
 ---
 
-## Running with Docker
+## Docker
 
 1. **Build the Docker image** (from project root, where `Dockerfile` lives):  
    ```bash
@@ -209,10 +209,6 @@ This separation of concerns ensures the model can flexibly support follow-up que
    ```
 2. Run container locally, forwarding port 8501 and loading environment vars:
    ```bash
-   docker run -d \
-  -p 8501:8501 \
-  --env-file .env \
-  --name dataquerybot \
-  dataquerybot:latest```
+   docker run -d \ -p 8501:8501 \ --env-file .env \ --name dataquerybot \ dataquerybot:latest```
 3. Verify and visit http://localhost:8501 in your browser.
 
