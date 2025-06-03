@@ -1,4 +1,5 @@
 # app.py
+
 import os
 import re
 import streamlit as st
@@ -14,7 +15,6 @@ load_dotenv()
 import main
 from main import nl_to_sql, fix_sql_with_error, summarize_result
 
-
 st.set_page_config(page_title="Per Diem DataQuery Chatbot")
 
 # Load merchant names from CSV (cached)
@@ -27,6 +27,7 @@ merchant_names = load_merchant_names()
 
 # Initialize session state variables
 if "current_mode" not in st.session_state:
+    # Will hold either "internal" or "merchant:<store_name>"
     st.session_state.current_mode = None
 
 if "engine" not in st.session_state:
@@ -39,8 +40,10 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 if "memories" not in st.session_state:
+    # A dict of mode → ConversationBufferMemory
     st.session_state.memories = {}
 
+# Sidebar: select user type and, if merchant, choose merchant name
 st.sidebar.title("User Selection")
 user_type = st.sidebar.radio("I am a:", ["PerDiem Internal User", "Merchant"])
 
@@ -139,33 +142,44 @@ def process_query():
     # Append user message
     st.session_state.chat_history.append({"role": "user", "content": question})
 
-    # NL → SQL (with context)
-    generated_sql = nl_to_sql(question, st.session_state.context_str)
-
-    # Execute or fix SQL
-    try:
-        df_result = pd.read_sql_query(generated_sql, st.session_state.engine)
-        error_msg = None
-    except Exception as e:
-        error_msg = str(e)
-        corrected_sql = fix_sql_with_error(
-            question,
-            generated_sql,
-            error_msg,
-            st.session_state.context_str
-        )
-        try:
-            df_result = pd.read_sql_query(corrected_sql, st.session_state.engine)
-            error_msg = None
-            generated_sql = corrected_sql
-        except Exception as e2:
-            error_msg = str(e2)
-            df_result = None
-
-    # Ensure backend uses the correct memory
+    # Ensure backend uses the correct memory for both nl_to_sql and fix_sql_with_error
     main.memory = get_current_memory()
 
-    # Summarize results via LLM
+    # Attempt up to 5 times: generate SQL → execute → fix if needed
+    generated_sql = nl_to_sql(question, st.session_state.context_str)
+    if generated_sql.startswith("--ERROR"):
+        # If nl_to_sql itself failed, skip retries
+        error_msg = generated_sql
+        df_result = None
+    else:
+        df_result = None
+        error_msg = None
+        MAX_RETRIES = 3
+        attempt = 0
+
+        while attempt < MAX_RETRIES:
+            try:
+                df_result = pd.read_sql_query(generated_sql, st.session_state.engine)
+                error_msg = None
+                break  # Success, exit retry loop
+            except Exception as e:
+                error_msg = str(e)
+                attempt += 1
+                # Generate a corrected SQL using memory + context
+                corrected_sql = fix_sql_with_error(
+                    question,
+                    generated_sql,
+                    error_msg,
+                    st.session_state.context_str
+                )
+                if corrected_sql.startswith("--ERROR"):
+                    # If correction itself failed, stop retrying
+                    break
+                generated_sql = corrected_sql
+
+        # If after retries we still have an error, df_result remains None
+
+    # Summarize results or error via LLM
     response = summarize_result(
         question,
         generated_sql,
@@ -174,13 +188,9 @@ def process_query():
         st.session_state.context_str
     )
 
-    # Insert a space after a period if followed by uppercase
+    # Clean up spacing in the response
     response = re.sub(r"\.([A-Z])", r". \1", response)
-
-    # Insert a space between a lowercase letter and an uppercase letter
     response = re.sub(r"([a-z])([A-Z])", r"\1 \2", response)
-
-    # Insert a space between a letter and a digit
     response = re.sub(r"([A-Za-z])(\d)", r"\1 \2", response)
 
     # Append assistant response
