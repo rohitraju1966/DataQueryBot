@@ -5,7 +5,7 @@ import re
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferWindowMemory
 from dotenv import load_dotenv
 
 # Load environment variables (GROQ_KEY, MERCHANT_NAME, IS_PER_DIEM)
@@ -40,7 +40,7 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 if "memories" not in st.session_state:
-    # A dict of mode → ConversationBufferMemory
+    # A dict of mode → ConversationBufferWindowMemory
     st.session_state.memories = {}
 
 # Sidebar: select user type and, if merchant, choose merchant name
@@ -61,7 +61,7 @@ if mode != st.session_state.current_mode:
     st.session_state.current_mode = mode
     st.session_state.chat_history = []
     if mode:
-        st.session_state.memories[mode] = ConversationBufferMemory(return_messages=True)
+        st.session_state.memories[mode] = ConversationBufferWindowMemory(return_messages=True, k=3)
 
 # Helper to get the current memory object (or None if no mode selected)
 def get_current_memory():
