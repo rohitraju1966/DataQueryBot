@@ -88,7 +88,7 @@ FEW_SHOT_SQL_PROMPT = [
     # Example: total revenue for Q1 2025
     {
         "role": "user",
-        "content": "Total revenue (in dollars) for 'Migos Fine Foods' from January 1 to March 31, 2025?"
+        "content": "Total revenue (in dollars) for 'Tikka Shack' from January 1 to March 31, 2025?"
     },
     {
         "role": "assistant",
@@ -97,14 +97,14 @@ FEW_SHOT_SQL_PROMPT = [
             "  ROUND(SUM(o.total_amount_in_cents) / 100.0, 2) AS total_revenue_in_cents\n"
             "FROM orders AS o\n"
             "JOIN stores AS s ON o.store_id = s.store_id\n"
-            "WHERE s.name = 'Migos Fine Foods'\n"
+            "WHERE s.name = 'Tikka Shack'\n"
             "  AND DATE(o.created_at) BETWEEN '2025-01-01' AND '2025-03-31';"
         )
     },
     # Example: count pickup orders for a specific week
     {
         "role": "user",
-        "content": "How many pickup orders did 'Migos Fine Foods' have between March 15 and March 21, 2025?"
+        "content": "How many pickup orders did 'Coffee Drip' have between March 15 and March 21, 2025?"
     },
     {
         "role": "assistant",
@@ -113,7 +113,7 @@ FEW_SHOT_SQL_PROMPT = [
             "  COUNT(*) AS pickup_orders_week\n"
             "FROM orders AS o\n"
             "JOIN stores AS s ON o.store_id = s.store_id\n"
-            "WHERE s.name = 'Migos Fine Foods'\n"
+            "WHERE s.name = 'Coffee Drip'\n"
             "  AND o.fulfillment_type = 'pickup'\n"
             "  AND DATE(o.created_at) BETWEEN '2025-03-15' AND '2025-03-21';"
         )
