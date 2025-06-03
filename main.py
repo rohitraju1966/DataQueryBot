@@ -61,8 +61,12 @@ FEW_SHOT_SQL_PROMPT = [
         "role": "system",
         "content": (
             f"{SCHEMA_DESCRIPTION}\n"
-            "Convert the user’s natural language request into a valid SQL query for this schema. "
-            "**Using SQLite syntax only.** Return only one SQL statement (no extra commentary)."
+            "Convert the user’s natural language request into a valid SQLite query for this schema. "
+            "The model should treat any possible question—simple or complex—as valid. "
+            "Always refer to the conversation history to understand context or implied references, "
+            "then match the intent to the available tables/columns and generate the appropriate SQLite query. "
+            "If the user’s question relies on prior turns, use that context to disambiguate and produce a correct SQLite statement."
+            "**Using SQLite syntax only.** Return only one SQL statement (no extra commentary). "
         )
     },
     # Example: compare week1 vs week2 for a store
@@ -123,7 +127,9 @@ client = Groq(api_key=api_key)
 # Sends a natural‐language query to the LLM with few‐shot context and returns the generated SQLite query.
 def nl_to_sql(query: str, context_str: str) -> str:
     try:
+        history_str = memory.load_memory_variables({})["history"]
         messages = FEW_SHOT_SQL_PROMPT + [
+            {"role": "user", "content": f"Conversation memory so far: {history_str}"},
             {"role": "user", "content": f"Context: {context_str}"},
             {"role": "user", "content": query}
         ]
@@ -135,18 +141,21 @@ def nl_to_sql(query: str, context_str: str) -> str:
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
+        # Return a recognizable error string instead of throwing
         return f"--ERROR IN nl_to_sql: {str(e)}"
 
 # If the initial SQL fails on SQLite, this function builds a prompt containing the user’s question
 def fix_sql_with_error(question: str, bad_sql: str, error_msg: str, context_str: str) -> str:
     try:
+        history_str = memory.load_memory_variables({})["history"]
+        
         fix_prompt = [
             {
                 "role": "system",
                 "content": (
                     f"{SCHEMA_DESCRIPTION}\n"
                     "One of your previously generated SQL statements failed on SQLite with an error. "
-                    "Below is the user’s original question, the SQL you provided, the SQLite error message, "
+                    "Below is the user’s conversation history, original question, the SQL you provided, the SQLite error message, "
                     "and the context (merchant or PerDiem internal user). "
                     "Please correct the SQL to be valid SQLite syntax and satisfy the original request. "
                     "Return only the corrected SQL statement (no commentary)."
@@ -156,6 +165,7 @@ def fix_sql_with_error(question: str, bad_sql: str, error_msg: str, context_str:
             {
                 "role": "user",
                 "content": (
+                    f"Conversation memory so far: {history_str}\n"
                     f"User question: {question}\n"
                     f"Bad SQL: {bad_sql}\n"
                     f"SQLite error: {error_msg}"
@@ -186,7 +196,7 @@ FEW_SHOT_SUMMARY_PROMPT = [
             "1. Use both the SQL‐extracted table and conversation history to draw your insights and answer the question.\n"
             "2. If relevant, incorporate any context from the conversation memory to clarify or enrich your analysis, but do not let memory override the concrete numbers in the table.\n"
             "3. If the result has multiple rows, include a small markdown‐style table showing those rows.\n"
-            "4. Immediately below that table, draw one or two brief insights with precise numbers (in dollars, not cents).\n"
+            "4. Immediately below that table, draw one or two brief but informative insights with precise numbers. Make sure these insights are helpful for the business. (in dollars, not cents).\n"
             "5. If the insights clearly point to a promotional opportunity, propose a single, concrete marketing idea.\n"  
             "6. If there is no promotional opportunity, do not output any text about marketing at all—simply stop after your “insight” sentence(s).\n"
             "7. Always use only the rows shown—do not add, infer, or omit values.\n"
@@ -195,6 +205,7 @@ FEW_SHOT_SUMMARY_PROMPT = [
             "9. If the single row is 0, reply exactly:\n"
             "   “It seems there are zero matching records—please verify your question.”\n"
             "10. Otherwise, for a single non‐zero row, answer in one sentence (no table needed) and only add a marketing idea if it follows logically from the insight.\n"
+            "**For the final output, make sure all numbers and units are properly spaced and punctuated. Do not merge numbers with surrounding words (e.g., write 646.27 in revenue, not 646.27inrevenue).**"
         )
     },
     {
@@ -221,6 +232,7 @@ memory = ConversationBufferMemory(return_messages=True)
 # We prepend the same context line here as well.
 # ----------------------------------------------------------------------
 def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, error_msg: str = None, context_str: str = "") -> str:
+    # Build result_content from DataFrame or error
     if error_msg:
         result_content = f"Error executing SQL: {error_msg}"
     elif df is None or df.empty:
@@ -232,10 +244,10 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
         else:
             result_content = f"Result Table:\n{table_text}"
 
-
+    # Load past conversation history from memory
     history_str = memory.load_memory_variables({})["history"]
 
-
+    # Build messages for summarization prompt
     messages = FEW_SHOT_SUMMARY_PROMPT + [
         {"role": "user", "content": f"Context: {context_str}"},
         {
@@ -249,6 +261,7 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
         }
     ]
 
+    # Call LLM for summary/insight/marketing suggestion
     try:
         response = client.chat.completions.create(
             model="llama3-70b-8192",
@@ -260,6 +273,7 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
     except Exception as e:
         summary = f"--ERROR IN summarize_result: {str(e)}"
 
+    # Save this question/summary pair into memory for future turns
     memory.save_context({"user": question}, {"assistant": summary})
     return summary
 
@@ -274,6 +288,7 @@ def main(merchant_name: str, is_per_diem: bool):
     # If merchant_name is provided, build a filtered database containing only that store's data
     original_db_path = "Processed/dashboard_chatbot.db"
     if merchant_name:
+        # Load the original database into pandas DataFrames
         original_engine = create_engine(f"sqlite:///{original_db_path}")
         stores_df = pd.read_sql_query("SELECT * FROM stores WHERE name = ?", original_engine, params=(merchant_name,))
         if stores_df.empty:
@@ -296,6 +311,7 @@ def main(merchant_name: str, is_per_diem: bool):
         engine = create_engine(f"sqlite:///{filtered_db_path}")
         context_str = f"Serving for merchant: {merchant_name}"
     else:
+        # Per Diem user: use the full original database
         engine = create_engine(f"sqlite:///{original_db_path}")
         context_str = "Serving for PerDiem internal user"
 
@@ -312,31 +328,29 @@ def main(merchant_name: str, is_per_diem: bool):
             print(f"\nAssistant: {generated_sql}")
             continue
 
-        try:
-            # Try executing the SQL directly against the chosen engine
-            df_result = pd.read_sql_query(generated_sql, engine)
-            error_msg = None
-        except Exception as e:
-            # If it fails, ask LLM to fix the SQL
-            error_msg = str(e)
-            corrected_sql = fix_sql_with_error(user_question, generated_sql, error_msg, context_str)
-            if corrected_sql.startswith("--ERROR"):
-                # If fix_sql_with_error failed, report and skip summarization
-                print(f"\nAssistant: {corrected_sql}")
-                continue
+        # Try executing with retries
+        MAX_RETRIES = 5
+        attempt = 0
+        df_result = None
+        error_msg = None
 
+        while attempt < MAX_RETRIES:
             try:
-                df_result = pd.read_sql_query(corrected_sql, engine)
+                df_result = pd.read_sql_query(generated_sql, engine)
                 error_msg = None
-                generated_sql = corrected_sql
-            except Exception as e2:
-                error_msg = str(e2)
-                df_result = None
+                break  
+            except Exception as e:
+                error_msg = str(e)
+                attempt += 1
+                corrected_sql = fix_sql_with_error(user_question, generated_sql, error_msg, context_str)
+                if corrected_sql.startswith("--ERROR"):
+                    break
+                generated_sql = corrected_sql  # Set the corrected query for next retry
+                print(f"Retry attempt {attempt}: fixing SQL...")
 
         # Summarize results (or error), passing context
         summary = summarize_result(user_question, generated_sql, df_result, error_msg, context_str)
         print(f"\nAssistant: {summary}")
-
 
 if __name__ == "__main__":
     # Pass merchant_name AND set is_per_diem=False for a merchant
