@@ -3,7 +3,7 @@ import os
 from sqlalchemy import create_engine
 import pandas as pd
 from groq import Groq
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferWindowMemory
 
 # Schema description for SQLite. Used by the SQL‐generation LLM prompt.
 SCHEMA_DESCRIPTION = """
@@ -205,7 +205,7 @@ FEW_SHOT_SUMMARY_PROMPT = [
             "9. If the single row is 0, reply exactly:\n"
             "   “It seems there are zero matching records—please verify your question.”\n"
             "10. Otherwise, for a single non‐zero row, answer in one sentence (no table needed) and only add a marketing idea if it follows logically from the insight.\n"
-            "**Write your answer in plain English using the raw numbers from the table. Use commas in large numbers (e.g., 2,820,646.27) and include dollar signs where appropriate (e.g., $42,079.45 in revenue). Make sure all numbers and units are properly spaced and punctuated — do not merge numbers with words (e.g., write $646.27 in revenue, not $646.27inrevenue).**"
+            "**For the final output, make sure all numbers and units are properly spaced and punctuated. Do not merge numbers with surrounding words (e.g., write 646.27 in revenue, not 646.27inrevenue).**"
         )
     },
     {
@@ -219,7 +219,7 @@ FEW_SHOT_SUMMARY_PROMPT = [
 ]
 
 # Instantiate memory once per chatbot session.
-memory = ConversationBufferMemory(return_messages=True)
+memory = ConversationBufferWindowMemory(return_messages=True, k=3)
 
 # ----------------------------------------------------------------------
 # Function: summarize_result
