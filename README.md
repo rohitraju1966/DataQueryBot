@@ -175,7 +175,7 @@ Since this is a significant revenue, a potential opportunity is to increase sale
 
 ## Flowchart
 
-![Architecture diagram](Architecture_DataQueryBot.png)
+![Architecture_diagram](Architecture_DataQueryBot.png)
 
 ### main.py Architecture
 
