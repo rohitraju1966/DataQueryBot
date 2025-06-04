@@ -3,6 +3,8 @@
 
 A Python-based chatbot allowing both Per Diem internal users and merchant users to interactively query sales and revenue data stored in a SQLite database. Users ask natural-language questions, which are converted into SQLite queries by an LLM, executed against a filtered (or full) dataset, and summarized back in plain English. A Streamlit frontend enables easy deployment and real-time interaction.
 
+Application: https://dataquerybot-perdiem.streamlit.app/
+
 ---
 
 ## Table of Contents
