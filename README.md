@@ -49,7 +49,8 @@ A Python-based chatbot allowing both Per Diem internal users and merchant users 
 
 - Python 3.8 or higher  
 - Git  
-- pip  
+- pip
+- Groq API key to run locally
 
 ---
 
