@@ -329,7 +329,7 @@ def main(merchant_name: str, is_per_diem: bool):
             continue
 
         # Try executing with retries
-        MAX_RETRIES = 5
+        MAX_RETRIES = 3
         attempt = 0
         df_result = None
         error_msg = None
