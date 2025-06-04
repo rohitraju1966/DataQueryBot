@@ -96,9 +96,13 @@ cp .env.example .env
 
 ## Data Preprocessing
 
+Please make sure to add your stores, customers and orders CSV files to the Raw folder. 
+
+The data is preprocessed using the preprocess.py file as follows, 
 ```bash
 python preprocess.py
 ```
+
 
 ---
 
