@@ -108,7 +108,7 @@ python preprocess.py
 
 ## Database Generation
 
-After running the preprocessor, you'll get:
+After running the preprocessor, you'll get the following in the Processed folder:
 - Cleaned CSVs
 - SQLite database with `orders`, `customers`, and `stores` tables
 
@@ -130,6 +130,8 @@ IS_PER_DIEM=True
 ---
 
 ## Running the Streamlit App
+
+Please make sure to set the Groq API key in your env file
 
 ```bash
 streamlit run app.py
@@ -189,11 +191,11 @@ The `main.py` file handles the backend logic of the chatbot and follows this flo
 
 2. **Database Connection**: Uses SQLAlchemy to connect to `dashboard_chatbot.db` or a store-specific filtered version.
 
-3. **LLM Initialization**: Sets up the Groq client and the LLM model used for query generation and summarization.
+3. **LLM Initialization**: Sets up the Groq client and the LLM model used for query generation, query correction and summarization.
 
 4. **Prompt Templates**:
    - **Query Generation Prompt**: Converts natural language to SQL using schema-aware context.
-   - **Query Error Correction Prompt**: Converts natural language to SQL when the first attempt fails. 
+   - **Query Error Correction Prompt loop**: Converts natural language to SQL when the previous attempt fails (tries for three attempts). 
    - **Summarization Prompt**: Translates SQL output into human-readable insights with markdown tables.
     
 5. **Chat Loop**:
@@ -216,7 +218,10 @@ This separation of concerns ensures the model can flexibly support follow-up que
    docker build -t dataquerybot:latest .
    ```
 2. Run container locally, forwarding port 8501 and loading environment vars:
+   
+   Please make sure to set the Groq API key in your env file
+
    ```bash
    docker run -d \ -p 8501:8501 \ --env-file .env \ --name dataquerybot \ dataquerybot:latest```
-3. Verify and visit http://localhost:8501 in your browser.
+4. Verify and visit http://localhost:8501 in your browser.
 
