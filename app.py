@@ -189,9 +189,7 @@ def process_query():
     )
 
     # Clean up spacing in the response
-    response = re.sub(r"\.([A-Z])", r". \1", response)
-    response = re.sub(r"([a-z])([A-Z])", r"\1 \2", response)
-    response = re.sub(r"([A-Za-z])(\d)", r"\1 \2", response)
+    response = response.replace("$", "\\$")
 
     # Append assistant response
     st.session_state.chat_history.append({"role": "assistant", "content": response})
