@@ -136,20 +136,23 @@ for entry in st.session_state.chat_history:
 
 def process_query():
     question = st.session_state.input_text.strip()
+
+    # If mode not selected or question not given, exit without running backend
     if not question or not st.session_state.current_mode:
         return
 
-    # Append user message
+    # Append user message to chat history
     st.session_state.chat_history.append({"role": "user", "content": question})
 
-    # Ensure backend uses the correct memory for both nl_to_sql and fix_sql_with_error
+    # Ensure backend uses the correct memory for both nl_to_sql and fix_sql_with_error (loads the past three set of user-assistant conversations)
     main.memory = get_current_memory()
 
-    # Attempt up to 5 times: generate SQL → execute → fix if needed
+    # Attempt up to 3 times: generate SQL → execute → fix if needed
     generated_sql = nl_to_sql(question, st.session_state.context_str)
     if generated_sql.startswith("--ERROR"):
-        # If nl_to_sql itself failed, skip retries
+        # If nl_to_sql functon  itself failed, skip retries
         error_msg = generated_sql
+        # No data retrieved 
         df_result = None
     else:
         df_result = None
@@ -173,7 +176,7 @@ def process_query():
                     st.session_state.context_str
                 )
                 if corrected_sql.startswith("--ERROR"):
-                    # If correction itself failed, stop retrying
+                    # If correction loop function itself failed, stop retrying
                     break
                 generated_sql = corrected_sql
 
@@ -188,10 +191,9 @@ def process_query():
         st.session_state.context_str
     )
 
-    # Clean up spacing in the response
+    # Clean up dollar sign, to not be misinterpretted by markdown 
     response = response.replace("$", "\\$")
 
-    # Append assistant response
     st.session_state.chat_history.append({"role": "assistant", "content": response})
 
     # Clear the input box
