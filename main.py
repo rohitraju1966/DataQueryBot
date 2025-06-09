@@ -141,10 +141,10 @@ def nl_to_sql(query: str, context_str: str) -> str:
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        # Return a recognizable error string instead of throwing
+        # Return a recognizable error string to help catch exception cases
         return f"--ERROR IN nl_to_sql: {str(e)}"
 
-# If the initial SQL fails on SQLite, this function builds a prompt containing the user’s question
+# If the initial SQL fails on SQLite, this function builds a prompt and runs it through the model to rectify the error
 def fix_sql_with_error(question: str, bad_sql: str, error_msg: str, context_str: str) -> str:
     try:
         history_str = memory.load_memory_variables({})["history"]
