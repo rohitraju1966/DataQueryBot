@@ -186,31 +186,39 @@ Since this is a significant revenue, a potential opportunity is to increase sale
 
 ![Architecture_diagram](Architecture_Bot.png)
 
-### main.py Architecture
+### System Flow: Per Diem DataQuery Chatbot
 
-The `main.py` file handles the backend logic of the chatbot and follows this flow:
+This flowchart outlines the step-by-step lifecycle of a user query in the Per Diem DataQuery chatbot.
 
-1. **Environment Setup**: Loads environment variables to determine user mode (Per Diem internal user vs. merchant). Depending on the mode, it connects to either the full or a filtered SQLite database.
+1. **User Selection**  
+   The user selects whether they are a PerDiem internal user or a merchant. If they choose merchant, they also provide a store name.
 
-2. **Database Connection**: Uses SQLAlchemy to connect to `dashboard_chatbot.db` or a store-specific filtered version.
+2. **Database Initialization**  
+   - Internal users connect to the full SQLite database.  
+   - Merchant users receive a filtered database containing only their store’s data.
 
-3. **LLM Initialization**: Sets up the Groq client and the LLM model used for query generation, query correction and summarization.
+3. **User Query**  
+   The user enters a natural language question through the interface.
 
-4. **Prompt Templates**:
-   - **Query Generation Prompt**: Converts natural language to SQL using schema-aware context.
-   - **Query Error Correction Prompt loop**: Converts natural language to SQL when the previous attempt fails (tries for three attempts). 
-   - **Summarization Prompt**: Translates SQL output into human-readable insights with markdown tables.
-    
-5. **Chat Loop**:
-   - Accepts user input.
-   - Uses LLM to convert input to SQL.
-   - Executes SQL against the database.
-   - If the query fails, attempts recovery using the correction prompt.
-   - Feeds result + conversation memory back to the LLM for summarization.
-   - Displays insights.
+4. **LLM SQL Generation**  
+   The question is passed to a large language model (LLM), which generates a valid SQLite query. The prompt includes instructions to follow, the schema, conversation memory, and a context string indicating whether the user is internal or a merchant.
 
-This separation of concerns ensures the model can flexibly support follow-up questions while maintaining safe access to merchant-specific data only.
+5. **Query Execution**  
+   The generated SQL is run against the appropriate database.
 
+6. **Error Handling**  
+   - If the query fails, a correction loop is triggered.  
+   - The failed SQL, error message, and context are sent back to the LLM to regenerate a corrected query.  
+   - This process is retried up to three times.
+
+7. **Result Summarization**  
+   Once the query succeeds (or permanently fails), the result is summarized by the LLM. The prompt includes the instructions to follow, original question, the final SQL, the result or error, and the memory of previous turns.
+
+8. **Response & Memory Update**  
+   - The summary is displayed to the user.  
+   - The user’s question and the assistant’s response are saved to memory for improved context in future questions.
+
+This architecture allows users to interact with structured business data through natural language, while ensuring accuracy and context-awareness.
 
 ---
 
