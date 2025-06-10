@@ -228,8 +228,6 @@ memory = ConversationBufferWindowMemory(return_messages=True, k=3)
 # - Loads conversation memory and includes it in the prompt.
 # - Calls LLM to generate a summary (or marketing idea).
 # - Saves the Q→A pair into memory for future context.
-#
-# We prepend the same context line here as well.
 # ----------------------------------------------------------------------
 def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, error_msg: str = None, context_str: str = "") -> str:
     # Build result_content from DataFrame or error
@@ -277,13 +275,8 @@ def summarize_result(question: str, sql_query: str, df: pd.DataFrame = None, err
     memory.save_context({"user": question}, {"assistant": summary})
     return summary
 
-# ----------------------------------------------------------------------
+
 # main(): Launches a console‐based chatbot loop.
-# - Connects to SQLite database.
-# - Repeatedly reads user input, generates SQL, executes or fixes errors.
-# - Calls summarize_result to produce the final answer.
-# - Keeps memory alive until session ends.
-# ----------------------------------------------------------------------
 def main(merchant_name: str, is_per_diem: bool):
     # If merchant_name is provided, build a filtered database containing only that store's data
     original_db_path = "Processed/dashboard_chatbot.db"
